@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chikkaballapur Bus Tracking</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; width: 100%; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+  // Initialize map
+  var map = L.map('map').setView([13.4, 77.78], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+  }).addTo(map);
+
+  // Define routes
+  var routes = {
+    "Route1": [[13.395494, 77.727767],[13.396575, 77.726641],[13.40636, 77.72726],[13.42360, 77.72973],[13.44748, 77.73556],[13.49102, 77.75213],[13.57671, 77.78114],[13.63116, 77.79161],[13.74052, 77.78955],[13.78286, 77.77496],[13.783176, 77.792923]],
+    "Route2": [[13.396647, 77.726641],[13.406334, 77.727263],[13.435457, 77.731608],[13.43406, 77.73979],[13.42874, 77.76286],[13.42448, 77.77627],[13.41739, 77.79745],[13.41244, 77.80792],[13.39652, 77.82878],[13.38541, 77.84742],[13.38503, 77.85627],[13.38382, 77.86275],[13.384459, 77.862452]],
+    "Route3": [[13.39571, 77.72660],[13.38324, 77.72625],[13.36013, 77.72561],[13.29839, 77.72574],[13.28382, 77.72286],[13.26904, 77.71994],[13.26368, 77.71797],[13.25825, 77.71398],[13.25044, 77.70686],[13.24956, 77.70861]]
+  };
+
+  // Draw routes
+  var routeColors = {"Route1":"red","Route2":"green","Route3":"blue"};
+  for (const r in routes) {
+    L.polyline(routes[r], {
+      color: routeColors[r],
+      weight: 3,
+      opacity: 0.6
+    }).addTo(map).bindPopup(r);
+  }
+
+  // Define icons for each route
+  const routeIcons = {
+    "Route1": L.icon({
+      iconUrl: 'bus_red.png',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -15]
+    }),
+    "Route2": L.icon({
+      iconUrl: 'bus_green.png',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -15]
+    }),
+    "Route3": L.icon({
+      iconUrl: 'bus_blue.png',
+      iconSize: [30, 30],
+      iconAnchor: [15, 15],
+      popupAnchor: [0, -15]
+    })
+  };
+
+  // Format ETA
+  function formatETA(seconds) {
+    if (!seconds) return "-";
+    var m = Math.floor(seconds / 60), s = seconds % 60;
+    return m + " min " + s + " sec";
+  }
+
+  // Track bus markers
+  var busMarkers = {};
+
+  // Update bus positions
+  function updateBuses() {
+    fetch('http://127.0.0.1:5000/bus_locations')
+      .then(r => r.json())
+      .then(data => {
+        for (const id in data) {
+          const bus = data[id], latlng = [bus.lat, bus.lng];
+          const popup = `<b>Bus ID:</b> ${bus.bus_id}<br><b>Route:</b> ${bus.route}<br><b>ETA:</b> ${formatETA(bus.eta_seconds)}`;
+
+          const icon = routeIcons[bus.route] || routeIcons["Route1"]; // fallback icon
+
+          if (busMarkers[id]) {
+            busMarkers[id].setLatLng(latlng).setPopupContent(popup);
+          } else {
+            busMarkers[id] = L.marker(latlng, { icon: icon }).addTo(map).bindPopup(popup);
+          }
+        }
+      })
+      .catch(e => console.log('Error:', e));
+  }
+
+  setInterval(updateBuses, 5000);
+  updateBuses();
+</script>
+</body>
+</html>
